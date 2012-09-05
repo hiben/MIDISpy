@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project name="MIDISpy" default="jar">
+  <property name="bin.dir" value="bin"/>
+  <property name="src.dir" value="src"/>
+  <property name="jar.file" value="${ant.project.name}.jar"/>
+  <property name="main.class" value="midispy.MIDISpy"/>
+  
+
+  <target name="compile">
+    <mkdir dir="${bin.dir}"/>
+    <javac includeantruntime="false" srcdir="${src.dir}" destdir="${bin.dir}"/>
+  </target>
+
+  <target name="jar" depends="compile">
+    <jar destfile="${jar.file}" basedir="${bin.dir}">
+      <fileset dir="" includes="LICENSE"/>
+      <manifest>
+        <attribute name="Main-Class" value="${main.class}"/>
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="run" depends="jar">
+    <java jar="${jar.file}" fork="true"/>
+  </target>
+
+  <target name="clean">
+    <delete file="${jar.file}"/>
+    <delete dir="${bin.dir}"/>
+  </target>
+</project>
