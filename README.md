@@ -4,6 +4,7 @@ MIDISpy
 a MIDI bridge for snooping/sniffing MIDI data in Java
 
 This application allows you to spy on MIDI data exchanged between two applications or devices.
+The wiki contains a screenshot that might make this description clearer.
 
 It works by building a bridge/relay for the data to display the message contents before transmitting it further.
 
