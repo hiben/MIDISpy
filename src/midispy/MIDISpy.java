@@ -259,6 +259,7 @@ public class MIDISpy implements Runnable {
 					stopButton.setEnabled(true);
 					startButton.setEnabled(false);
 				} catch (MidiUnavailableException e1) {
+					JOptionPane.showMessageDialog(frame, "There was an error while setting up the connections!\n" + e1.getMessage(), "MIDI-Error", JOptionPane.ERROR_MESSAGE);
 					cleanup();
 				}
 			}
