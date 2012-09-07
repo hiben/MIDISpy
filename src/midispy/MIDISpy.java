@@ -25,12 +25,18 @@ package midispy;
 
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.MouseInfo;
 import java.awt.Point;
 import java.awt.PointerInfo;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -45,8 +51,10 @@ import javax.swing.AbstractAction;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
@@ -93,6 +101,7 @@ public class MIDISpy implements Runnable {
 						if(p==null) {
 							EventQueue.invokeLater(this);
 						} else {
+							p.x = 0;
 							Rectangle r = new Rectangle();
 							r.add(p);
 							dataDisplay.scrollRectToVisible(r);
@@ -112,6 +121,8 @@ public class MIDISpy implements Runnable {
 	
 	private static final String acStart = "start";
 	private static final String acStop = "stop";
+	private static final String acClear = "clear";
+	private static final String acSave = "save";
 	
 	private static final char [] hexchars = { 
 		'0', '1', '2', '3',
@@ -183,6 +194,8 @@ public class MIDISpy implements Runnable {
 		relay2 = null;
 	}
 	
+	private JFileChooser saveChooser = null;
+	
 	private AbstractAction buttonAction = new AbstractAction(acStart) {
 		private static final long serialVersionUID = 1L;
 
@@ -195,21 +208,27 @@ public class MIDISpy implements Runnable {
 				int selo2 = oDev2.getSelectedIndex();
 				
 				if(seli1 == -1) {
+					JOptionPane.showMessageDialog(frame, "No first input device selected!", "Missing Input Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				if(selo1 == -1) {
+					JOptionPane.showMessageDialog(frame, "No first output device selected!", "Missing Output Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				if(seli2 == -1) {
+					JOptionPane.showMessageDialog(frame, "No second input device selected!", "Missing Input Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				if(selo2 == -1) {
+					JOptionPane.showMessageDialog(frame, "No second output device selected!", "Missing Output Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				if(selo1 == selo2) {
+					JOptionPane.showMessageDialog(frame, "Same device choosen for both outputs!", "Same Output Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				if(seli1 == seli2) {
+					JOptionPane.showMessageDialog(frame, "Same device choosen for both inputs!", "Same Input Device", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 				
@@ -231,8 +250,6 @@ public class MIDISpy implements Runnable {
 					
 					relay1 = new Relay(t1, ">>> ", r2);
 					relay2 = new Relay(t2, "<<< ", r1);
-					
-					System.out.println("Setup complete...");
 
 					iDev1.setEnabled(false);
 					oDev1.setEnabled(false);
@@ -254,6 +271,42 @@ public class MIDISpy implements Runnable {
 				oDev1.setEnabled(true);
 				iDev2.setEnabled(true);
 				oDev2.setEnabled(true);
+			}
+			if(e.getActionCommand().equals(acClear)) {
+				synchronized (dataDisplay) {
+					dataDisplay.setText("");
+				}
+			}
+			if(e.getActionCommand().equals(acSave)) {
+				String text = "";
+				synchronized (dataDisplay) {
+					text = dataDisplay.getText();
+				}
+				
+				if(saveChooser==null) {
+					saveChooser = new JFileChooser();
+					saveChooser.setSelectedFile(new File("dump.txt"));
+				}
+				
+				saveChooser.setDialogTitle("Select file for dumps...");
+				while(saveChooser.showSaveDialog(frame) == JFileChooser.APPROVE_OPTION) {
+					File f = saveChooser.getSelectedFile();
+					if(f.exists()) {
+						int r =JOptionPane.showConfirmDialog(frame, "Overwrite existing file '" + f.getName() + "' ?", "File exists...", JOptionPane.YES_NO_CANCEL_OPTION);
+						if(r == JOptionPane.NO_OPTION)
+							continue;
+						if(r != JOptionPane.YES_OPTION)
+							break;
+					}
+					try {
+						FileOutputStream fos = new FileOutputStream(f);
+						fos.write(text.getBytes());
+						fos.close();
+					} catch (IOException ioe) {
+						JOptionPane.showMessageDialog(frame, "An error occured while writing to the file...\n" + ioe.getMessage(), "File-Error", JOptionPane.ERROR_MESSAGE);
+					}
+					break;
+				}
 			}
 		}
 		
@@ -310,7 +363,13 @@ public class MIDISpy implements Runnable {
 		
 		PointerInfo pi = MouseInfo.getPointerInfo();
 		frame = new JFrame("MIDISpy", pi.getDevice().getDefaultConfiguration());
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		frame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(WindowEvent e) {
+				cleanup();
+			}
+		});
 		
 		JPanel p;
 		p = new JPanel();
@@ -336,17 +395,33 @@ public class MIDISpy implements Runnable {
 		frame.add(new JScrollPane(dataDisplay), BorderLayout.CENTER);
 		
 		p = new JPanel();
+		p.setLayout(new FlowLayout(FlowLayout.LEFT));
 		
 		startButton = new JButton(buttonAction);
 		startButton.setText("Start");
+		startButton.setToolTipText("start transmitting data");
 		startButton.setActionCommand(acStart);
 		p.add(startButton);
 
 		stopButton = new JButton(buttonAction);
 		stopButton.setText("Stop");
+		stopButton.setToolTipText("stop transmitting data");
 		stopButton.setActionCommand(acStop);
 		stopButton.setEnabled(false);
 		p.add(stopButton);
+		
+		JButton b;
+		b = new JButton(buttonAction);
+		b.setText("Clear");
+		b.setToolTipText("clear dumps");
+		b.setActionCommand(acClear);
+		p.add(b);
+
+		b = new JButton(buttonAction);
+		b.setText("Save");
+		b.setToolTipText("save shown dumps to a file");
+		b.setActionCommand(acSave);
+		p.add(b);
 		
 		p.add(autoScroll = new JCheckBox("automatic scrolling", true));
 			
