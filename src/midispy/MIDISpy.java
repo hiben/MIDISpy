@@ -61,6 +61,18 @@ import javax.swing.JTextArea;
 
 public class MIDISpy implements Runnable {
 	
+	private static final String acStart = "start";
+	private static final String acStop = "stop";
+	private static final String acClear = "clear";
+	private static final String acSave = "save";
+	
+	private static final char [] hexchars = { 
+		'0', '1', '2', '3',
+		'4', '5', '6', '7',
+		'8', '9', 'A', 'B',
+		'C', 'D', 'E', 'F',
+		};
+	
 	private JFrame frame;
 
 	private List<MidiDevice> inputDevices = new LinkedList<MidiDevice>();
@@ -78,6 +90,8 @@ public class MIDISpy implements Runnable {
 	private JButton startButton;
 	private JButton stopButton;
 	
+	private JFileChooser saveChooser = null;
+	
 	private MidiDevice currentInput1 = null;
 	private MidiDevice currentOutput1 = null;
 	private MidiDevice currentInput2 = null;
@@ -89,47 +103,6 @@ public class MIDISpy implements Runnable {
 	public static void main(String [] args) {
 		EventQueue.invokeLater(new MIDISpy());
 	}
-	
-	private void scrollView() {
-		if(autoScroll.isSelected()) {
-			EventQueue.invokeLater(new Runnable() {
-				public void run() {
-					synchronized(dataDisplay) {
-						int pos = dataDisplay.getDocument().getLength();
-						dataDisplay.setCaretPosition(pos);
-						Point p = dataDisplay.getCaret().getMagicCaretPosition();
-						if(p==null) {
-							EventQueue.invokeLater(this);
-						} else {
-							p.x = 0;
-							Rectangle r = new Rectangle();
-							r.add(p);
-							dataDisplay.scrollRectToVisible(r);
-						}
-					}
-				}
-			});
-		}
-	}
-	
-	private void addText(String txt) {
-		synchronized (dataDisplay) {
-			dataDisplay.append(txt);
-		}
-		scrollView();
-	}
-	
-	private static final String acStart = "start";
-	private static final String acStop = "stop";
-	private static final String acClear = "clear";
-	private static final String acSave = "save";
-	
-	private static final char [] hexchars = { 
-		'0', '1', '2', '3',
-		'4', '5', '6', '7',
-		'8', '9', 'A', 'B',
-		'C', 'D', 'E', 'F',
-		};
 	
 	private class Relay implements Receiver {
 		
@@ -170,6 +143,35 @@ public class MIDISpy implements Runnable {
 		}
 	}
 	
+	private void scrollView() {
+		if(autoScroll.isSelected()) {
+			EventQueue.invokeLater(new Runnable() {
+				public void run() {
+					synchronized(dataDisplay) {
+						int pos = dataDisplay.getDocument().getLength();
+						dataDisplay.setCaretPosition(pos);
+						Point p = dataDisplay.getCaret().getMagicCaretPosition();
+						if(p==null) {
+							EventQueue.invokeLater(this);
+						} else {
+							p.x = 0;
+							Rectangle r = new Rectangle();
+							r.add(p);
+							dataDisplay.scrollRectToVisible(r);
+						}
+					}
+				}
+			});
+		}
+	}
+	
+	private void addText(String txt) {
+		synchronized (dataDisplay) {
+			dataDisplay.append(txt);
+		}
+		scrollView();
+	}
+	
 	private void cleanup() {
 		if(relay1!=null)
 			relay1.close();
@@ -193,8 +195,6 @@ public class MIDISpy implements Runnable {
 		relay1 = null;
 		relay2 = null;
 	}
-	
-	private JFileChooser saveChooser = null;
 	
 	private AbstractAction buttonAction = new AbstractAction(acStart) {
 		private static final long serialVersionUID = 1L;
@@ -287,9 +287,9 @@ public class MIDISpy implements Runnable {
 				if(saveChooser==null) {
 					saveChooser = new JFileChooser();
 					saveChooser.setSelectedFile(new File("dump.txt"));
+					saveChooser.setDialogTitle("Select file for dumps...");
 				}
 				
-				saveChooser.setDialogTitle("Select file for dumps...");
 				while(saveChooser.showSaveDialog(frame) == JFileChooser.APPROVE_OPTION) {
 					File f = saveChooser.getSelectedFile();
 					if(f.exists()) {
@@ -314,8 +314,6 @@ public class MIDISpy implements Runnable {
 	};
 
 	public void run() {
-		
-		
 		Info[] devInfos = MidiSystem.getMidiDeviceInfo();
 		
 		for(Info i : devInfos) {
@@ -431,5 +429,4 @@ public class MIDISpy implements Runnable {
 		frame.pack();
 		frame.setVisible(true);
 	}
-
 }
