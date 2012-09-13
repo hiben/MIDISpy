@@ -427,6 +427,7 @@ public class MIDISpy implements Runnable {
 		frame.add(p, BorderLayout.SOUTH);
 		
 		frame.pack();
+		frame.setLocationByPlatform(true);
 		frame.setVisible(true);
 	}
 }
