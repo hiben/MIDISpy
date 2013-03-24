@@ -39,6 +39,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.prefs.Preferences;
 
 import javax.sound.midi.MidiDevice;
 import javax.sound.midi.MidiDevice.Info;
@@ -66,6 +67,12 @@ public class MIDISpy implements Runnable {
 	private static final String acClear = "clear";
 	private static final String acSave = "save";
 	
+	private static final String prefSave = "Save";
+	private static final String prefIn1 = "Input1";
+	private static final String prefIn2 = "Input2";
+	private static final String prefOut1 = "Output1";
+	private static final String prefOut2 = "Output2";
+	
 	private static final char [] hexchars = { 
 		'0', '1', '2', '3',
 		'4', '5', '6', '7',
@@ -78,12 +85,13 @@ public class MIDISpy implements Runnable {
 	private List<MidiDevice> inputDevices = new LinkedList<MidiDevice>();
 	private List<MidiDevice> outputDevices = new LinkedList<MidiDevice>();
 	
-	private JComboBox oDev1;
-	private JComboBox iDev1;
-	private JComboBox oDev2;
-	private JComboBox iDev2;
+	private JComboBox<String> oDev1;
+	private JComboBox<String> iDev1;
+	private JComboBox<String> oDev2;
+	private JComboBox<String> iDev2;
 	
 	private JCheckBox autoScroll;
+	private JCheckBox saveDevices;
 	
 	private JTextArea dataDisplay;
 	
@@ -194,6 +202,17 @@ public class MIDISpy implements Runnable {
 
 		relay1 = null;
 		relay2 = null;
+		
+		Preferences prefs = Preferences.userNodeForPackage(MIDISpy.class);
+		if(saveDevices.isSelected()) {
+			prefs.put(prefIn1, (String)iDev1.getSelectedItem());
+			prefs.put(prefIn2, (String)iDev2.getSelectedItem());
+			prefs.put(prefOut1, (String)oDev1.getSelectedItem());
+			prefs.put(prefOut2, (String)oDev2.getSelectedItem());
+			prefs.putBoolean(prefSave, true);
+		} else {
+			prefs.putBoolean(prefSave, false);
+		}
 	}
 	
 	private AbstractAction buttonAction = new AbstractAction(acStart) {
@@ -314,6 +333,21 @@ public class MIDISpy implements Runnable {
 	};
 
 	public void run() {
+		Preferences prefs = Preferences.userNodeForPackage(MIDISpy.class);
+		
+		String savedI1 = null;
+		String savedI2 = null;
+		String savedO1 = null;
+		String savedO2 = null;
+		
+		boolean savePrefs;
+		if(savePrefs = prefs.getBoolean(prefSave, true)) {
+			savedI1 = prefs.get(prefIn1, null);
+			savedI2 = prefs.get(prefIn2, null);
+			savedO1 = prefs.get(prefOut1, null);
+			savedO2 = prefs.get(prefOut2, null);
+		}
+		
 		Info[] devInfos = MidiSystem.getMidiDeviceInfo();
 		
 		for(Info i : devInfos) {
@@ -330,6 +364,11 @@ public class MIDISpy implements Runnable {
 			}
 		}
 		
+		int i1match = -1;
+		int i2match = -1;
+		int o1match = -1;
+		int o2match = -1;
+		
 		String [] iDevNames = new String [inputDevices.size()];
 		int index = 0;
 		String prevName = null;
@@ -342,8 +381,15 @@ public class MIDISpy implements Runnable {
 			} else {
 				num = 2;
 			}
+			if(savedI1 != null && savedI1.equals(addName)) {
+				i1match = index;
+			}
+			if(savedI2 != null && savedI2.equals(addName)) {
+				i2match = index;
+			}
 			prevName = name;
 			iDevNames[index++] = addName;
+			
 		}
 		prevName = null;
 		String [] oDevNames = new String [outputDevices.size()];
@@ -355,6 +401,12 @@ public class MIDISpy implements Runnable {
 				addName = name + " (" + num++ + ")";
 			} else {
 				num = 2;
+			}
+			if(savedO1 != null && savedO1.equals(addName)) {
+				o1match = index;
+			}
+			if(savedO2 != null && savedO2.equals(addName)) {
+				o2match = index;
 			}
 			prevName = name;
 			oDevNames[index++] = addName;
@@ -379,11 +431,16 @@ public class MIDISpy implements Runnable {
 		p.add(new JLabel("Input 2 <<<"));
 		p.add(new JLabel("Output 2 ( gets >>> )"));
 		
-		p.add(iDev1 = new JComboBox(iDevNames));
-		p.add(oDev1 = new JComboBox(oDevNames));
+		p.add(iDev1 = new JComboBox<String>(iDevNames));
+		p.add(oDev1 = new JComboBox<String>(oDevNames));
 
-		p.add(iDev2 = new JComboBox(iDevNames));
-		p.add(oDev2 = new JComboBox(oDevNames));
+		p.add(iDev2 = new JComboBox<String>(iDevNames));
+		p.add(oDev2 = new JComboBox<String>(oDevNames));
+		
+		if(i1match >= 0) iDev1.setSelectedIndex(i1match);
+		if(i2match >= 0) iDev2.setSelectedIndex(i2match);
+		if(o1match >= 0) oDev1.setSelectedIndex(o1match);
+		if(o2match >= 0) oDev2.setSelectedIndex(o2match);
 		
 		frame.add(p, BorderLayout.NORTH);
 		
@@ -423,6 +480,8 @@ public class MIDISpy implements Runnable {
 		p.add(b);
 		
 		p.add(autoScroll = new JCheckBox("automatic scrolling", true));
+		p.add(saveDevices = new JCheckBox("save devices", savePrefs));
+		saveDevices.setToolTipText("remember selected devices on next start");
 			
 		frame.add(p, BorderLayout.SOUTH);
 		
